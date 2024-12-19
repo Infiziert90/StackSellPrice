@@ -48,7 +48,7 @@
 	</PropertyGroup>
 
 	<PropertyGroup><!-- these properties are LOCKED and applied UNCONDITIONALLY -->
-		<RootNamespace>PrincessRTFM.$(PackageId)</RootNamespace>
+		<RootNamespace>$(PackageId)</RootNamespace>
 		<Nullable>enable</Nullable>
 		<NullableContextOptions>enable</NullableContextOptions>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -67,19 +67,6 @@
 		<ImplicitUsings>false</ImplicitUsings>
 		<NoWarn>CA1805,CA1852,CA1707,$(NoWarn)</NoWarn>
 	</PropertyGroup>
-
-	<Choose>
-		<When Condition=" '$(Authors)' == '' ">
-			<PropertyGroup>
-				<Authors>VariableVixen</Authors>
-			</PropertyGroup>
-		</When>
-		<When Condition=" ! $([System.Text.RegularExpressions.Regex]::IsMatch($(Authors.ToLower()), '\bvariablevixen\b')) ">
-			<PropertyGroup>
-				<Authors>VariableVixen, $(Authors)</Authors>
-			</PropertyGroup>
-		</When>
-	</Choose>
 
 	<PropertyGroup>
 		<Copyright Condition=" '$(Copyright)' == '' ">Copyleft $(Authors)</Copyright>

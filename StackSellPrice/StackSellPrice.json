@@ -1,8 +1,7 @@
 {
   "Name": "StackSellPrice",
-  "Author": "VariableVixen",
+  "Author": "Infi, VariableVixen",
   "Description": "Shows the vendor sell price for the full stack of an item on the tooltip",
-  "RepoUrl": "https://github.com/PrincessRTFM/StackSellPrice",
-  "Punchline": "Because multiplication is hard.",
-  "IconUrl": "https://raw.githubusercontent.com/goatcorp/DalamudPlugins/master/plugins/StackSellPrice/images/icon.png"
+  "RepoUrl": "https://github.com/Infiziert90/StackSellPrice",
+  "Punchline": "Because multiplication is hard."
 }

@@ -60,10 +60,8 @@ public class Plugin : IDalamudPlugin
 		// - 72: PremiumSaddleB
 		var inventoryType = agent->TypeOrId switch
 		{
-			48 => InventoryType.Inventory1,
-			49 => InventoryType.Inventory2,
-			50 => InventoryType.Inventory3,
-			51 => InventoryType.Inventory4,
+			48 or 49 or
+			50 or 51 => InventoryType.Inventory1,
 			52 or 53 or 54 or
 			55 or 56 => InventoryType.RetainerPage1,
 			69 => InventoryType.SaddleBag1,
@@ -78,9 +76,10 @@ public class Plugin : IDalamudPlugin
 			return;
 
 		var index = (int)agent->Index;
-		if (inventoryType is InventoryType.Inventory1 or InventoryType.Inventory2 or InventoryType.Inventory3 or InventoryType.Inventory4)
+		if (inventoryType is InventoryType.Inventory1)
 		{
-			index += (int)inventoryType * 35;
+			// - 48: Inventory1 / 35 PageSize
+			index += (int)(agent->TypeOrId - 48) * 35;
 			var sortedItem = sortModule->InventorySorter->Items[index];
 
 			index = sortedItem.Value->Slot;
@@ -91,9 +90,8 @@ public class Plugin : IDalamudPlugin
 		{
 			var retainerSort = sortModule->RetainerSorter[sortModule->ActiveRetainerId].Value;
 
-			// - 52: RetainerInventory1
-			var offsetMulti = agent->TypeOrId - 52;
-			index += (int)(35 * offsetMulti);
+			// - 52: RetainerInventory1 / 35 PageSize
+			index += (int)(agent->TypeOrId - 52) * 35;
 
 			var sortedItem = retainerSort->Items[index];
 			index = sortedItem.Value->Slot;
@@ -144,7 +142,7 @@ public class Plugin : IDalamudPlugin
 					.PopColorType();
 			}
 
-			shopSellPriceAtk->SetText(builder.ToArray());
+			shopSellPriceAtk->SetText(builder.GetViewAsSpan());
 		}
 	}
 

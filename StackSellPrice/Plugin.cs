@@ -104,7 +104,10 @@ public class Plugin : IDalamudPlugin
 		disposed = true;
 
 		if (disposing)
+		{
+			AddonLifecycle.UnregisterListener(AddonEvent.PostRequestedUpdate, "ItemDetail", ModifyTooltip);
 			Log.Information("Unregistered tooltip construction handler!");
+		}
 
 		Log.Information("Goodbye friend :)");
 	}

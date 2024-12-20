@@ -1,15 +1,16 @@
 using System;
 using Dalamud.Game.Addon.Lifecycle;
 using Dalamud.Game.Addon.Lifecycle.AddonArgTypes;
-using Dalamud.Game.Text;
-using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
+using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
+using FFXIVClientStructs.FFXIV.Client.UI.Misc;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using Lumina.Excel.Sheets;
-using Lumina.Text.ReadOnly;
+using Lumina.Text;
+using Lumina.Text.Payloads;
 
 namespace StackSellPrice;
 
@@ -37,28 +38,78 @@ public class Plugin : IDalamudPlugin
 		if (shopSellPriceAtk == null || !shopSellPriceAtk->IsVisible())
 			return;
 
-		var itemId = AgentItemDetail.Instance()->ItemId;
-		// 0: nothing
-		// 1 - 499,999: NQ
-		// 500,000 - 999,999: collectibles
-		// 1,000,000 - 1,499,999: HQ
-		// 1,500,000 - 1,999,999: -n/a-
-		// 2,000,000+: quest/event
-		if (itemId is not (>= 1 and < 500_000) and not (>= 1_000_000 and < 1_500_000))
+		var agent = AgentItemDetail.Instance();
+		var sortModule = ItemOrderModule.Instance();
+		var inventoryAgent = InventoryManager.Instance();
+
+		if (agent->ItemKind != ItemDetailKind.InventoryItem)
 			return;
 
-		var hq = false;
-		if (itemId is >= 1_000_000 and < 1_500_000)
+		// - 48: Inventory1
+		// - 49: Inventory2
+		// - 50: Inventory3
+		// - 51: Inventory4
+		// - 52: RetainerInventory1
+		// - 53: RetainerInventory2
+		// - 54: RetainerInventory3
+		// - 55: RetainerInventory4
+		// - 56: RetainerInventory5
+		// - 69: SaddleBag1
+		// - 70: SaddleBag2
+		// - 71: PremiumSaddleBag1
+		// - 72: PremiumSaddleB
+		var inventoryType = agent->TypeOrId switch
 		{
-			itemId -= 1_000_000;
-			hq = true;
-		}
-		else if (itemId is (>= 5604 and <= 5723) or (>= 18006 and <= 18029) or (>= 25186 and <= 25198) or (>= 26727 and <= 26739) or (>= 33917 and <= 33942))
+			48 => InventoryType.Inventory1,
+			49 => InventoryType.Inventory2,
+			50 => InventoryType.Inventory3,
+			51 => InventoryType.Inventory4,
+			52 or 53 or 54 or
+			55 or 56 => InventoryType.RetainerPage1,
+			69 => InventoryType.SaddleBag1,
+			70 => InventoryType.SaddleBag2,
+			71 => InventoryType.PremiumSaddleBag1,
+			72 => InventoryType.PremiumSaddleBag2,
+			_ => (InventoryType)99999,
+		};
+
+		// Type was something we don't process
+		if ((uint)inventoryType == 99999)
+			return;
+
+		var index = (int)agent->Index;
+		if (inventoryType is InventoryType.Inventory1 or InventoryType.Inventory2 or InventoryType.Inventory3 or InventoryType.Inventory4)
 		{
-			hq = true; // hack for materia prices being handled as if they're HQ even though they can't actually /be/ HQ, thanks SE, what the fuck
+			index += (int)inventoryType * 35;
+			var sortedItem = sortModule->InventorySorter->Items[index];
+
+			index = sortedItem.Value->Slot;
+			inventoryType = InventoryType.Inventory1 + sortedItem.Value->Page;
 		}
 
-		double price = GameData.GetExcelSheet<Item>().GetRow(itemId).PriceLow;
+		if (inventoryType is InventoryType.RetainerPage1)
+		{
+			var retainerSort = sortModule->RetainerSorter[sortModule->ActiveRetainerId].Value;
+
+			// - 52: RetainerInventory1
+			var offsetMulti = agent->TypeOrId - 52;
+			index += (int)(35 * offsetMulti);
+
+			var sortedItem = retainerSort->Items[index];
+			index = sortedItem.Value->Slot;
+			inventoryType = InventoryType.RetainerPage1 + sortedItem.Value->Page;
+		}
+
+		var item = inventoryAgent->GetInventorySlot(inventoryType, index);
+		if (item == null)
+			return;
+
+		var itemRow = GameData.GetExcelSheet<Item>().GetRow(item->ItemId);
+		if (itemRow.StackSize <= 1)
+			return;
+
+		var hq = item->Flags == InventoryItem.ItemFlags.HighQuality;
+		var price = (double)itemRow.PriceLow;
 		if (price <= 0)
 			return;
 
@@ -69,29 +120,31 @@ public class Plugin : IDalamudPlugin
 		if (quantityAtk == null || !quantityAtk->IsVisible())
 			return;
 
-		var quantityLine = new ReadOnlySeString(quantityAtk->NodeText).ExtractText();
-		uint quantity;
-		var parts = quantityLine.Split('/');
-		if (parts.Length > 1)
-		{
-			if (!uint.TryParse(parts[0], out quantity))
-				return;
-		}
-		else
-		{
-			return;
-		}
-
+		var quantity = item->Quantity;
 		if (quantity > 1)
 		{
 			var builder = new SeStringBuilder();
-			builder
-				.AddText($"{price}{SeIconChar.Gil.ToIconString()}")
-				.AddUiForeground($" (x{quantity:N0} = ", 3)
-				.AddUiForeground($"{price * quantity:N0}{SeIconChar.Gil.ToIconString()}", 529)
-				.AddUiForeground(")", 3);
+			var addonText = GameData.GetExcelSheet<Addon>().GetRow(484).Text;
+			foreach (var payload in addonText)
+			{
+				if (payload.MacroCode != MacroCode.Kilo)
+				{
+					builder.Append(payload);
+					continue;
+				}
 
-			shopSellPriceAtk->SetText(builder.BuiltString.EncodeWithNullTerminator());
+				builder
+					.Append($"{price}")
+					.PushColorType(3)
+					.Append($" (x{quantity:N0} = ")
+					.PushColorType(529)
+					.Append($"{price * quantity:N0}")
+					.PopColorType()
+					.Append(")")
+					.PopColorType();
+			}
+
+			shopSellPriceAtk->SetText(builder.ToArray());
 		}
 	}
 

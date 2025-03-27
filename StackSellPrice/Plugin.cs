@@ -132,7 +132,7 @@ public class Plugin : IDalamudPlugin
 				}
 
 				builder
-					.Append($"{price}")
+					.Append($"{price:N0}")
 					.PushColorType(3)
 					.Append($" (x{quantity:N0} = ")
 					.PushColorType(529)

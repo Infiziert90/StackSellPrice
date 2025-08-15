@@ -4,6 +4,7 @@ using Dalamud.Game.Addon.Lifecycle.AddonArgTypes;
 using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
+using FFXIVClientStructs.FFXIV.Client.Enums;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using FFXIVClientStructs.FFXIV.Client.UI.Misc;
@@ -16,11 +17,11 @@ namespace StackSellPrice;
 
 public class Plugin : IDalamudPlugin
 {
-	private bool disposed;
-
 	[PluginService] public static IDataManager GameData { get; private set; } = null!;
 	[PluginService] public static IPluginLog Log { get; private set; } = null!;
 	[PluginService] public static IAddonLifecycle AddonLifecycle { get; private set; } = null!;
+
+    private bool disposed;
 
 	public Plugin()
 	{
@@ -30,11 +31,11 @@ public class Plugin : IDalamudPlugin
 	}
 
 	private unsafe void ModifyTooltip(AddonEvent _, AddonArgs args) {
-		var atkBase = (AtkUnitBase*)args.Addon;
-		if (atkBase == null || !atkBase->IsVisible)
+		var atkBase = args.Addon;
+		if (atkBase.IsNull || !atkBase.IsVisible)
 			return;
 
-		var shopSellPriceAtk = atkBase->GetTextNodeById(48);
+		var shopSellPriceAtk = ((AtkUnitBase*)atkBase.Address)->GetTextNodeById(48);
 		if (shopSellPriceAtk == null || !shopSellPriceAtk->IsVisible())
 			return;
 
@@ -42,7 +43,7 @@ public class Plugin : IDalamudPlugin
 		var sortModule = ItemOrderModule.Instance();
 		var inventoryAgent = InventoryManager.Instance();
 
-		if (agent->ItemKind != ItemDetailKind.InventoryItem)
+		if (agent->DetailKind != DetailKind.InventoryItem)
 			return;
 
 		// - 48: Inventory1
@@ -114,33 +115,33 @@ public class Plugin : IDalamudPlugin
 		if (hq)
 			price += Math.Ceiling(price / 10);
 
-		var quantityAtk = atkBase->GetTextNodeById(34);
+		var quantityAtk = ((AtkUnitBase*)atkBase.Address)->GetTextNodeById(34);
 		if (quantityAtk == null || !quantityAtk->IsVisible())
 			return;
 
 		var quantity = item->Quantity;
 		if (quantity > 1)
 		{
-			var builder = new SeStringBuilder();
-			var addonText = GameData.GetExcelSheet<Addon>().GetRow(484).Text;
-			foreach (var payload in addonText)
-			{
-				if (payload.MacroCode != MacroCode.Kilo)
-				{
-					builder.Append(payload);
-					continue;
-				}
+            var builder = new SeStringBuilder();
+            var addonText = GameData.GetExcelSheet<Addon>().GetRow(484).Text;
+            foreach (var payload in addonText)
+            {
+	            if (payload.MacroCode != MacroCode.Kilo)
+	            {
+		            builder.Append(payload);
+		            continue;
+	            }
 
-				builder
-					.Append($"{price:N0}")
-					.PushColorType(3)
-					.Append($" (x{quantity:N0} = ")
-					.PushColorType(529)
-					.Append($"{price * quantity:N0}")
-					.PopColorType()
-					.Append(")")
-					.PopColorType();
-			}
+	            builder
+		            .Append($"{price:N0}")
+		            .PushColorType(3)
+		            .Append($" (x{quantity:N0} = ")
+		            .PushColorType(529)
+		            .Append($"{price * quantity:N0}")
+		            .PopColorType()
+		            .Append(")")
+		            .PopColorType();
+            }
 
 			shopSellPriceAtk->SetText(builder.GetViewAsSpan());
 		}

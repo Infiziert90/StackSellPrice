@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<Project Sdk="Dalamud.NET.Sdk/14.0.2">
+<Project Sdk="Dalamud.NET.Sdk/15.0.0">
 	<PropertyGroup>
 		<Product>StackSellPrice</Product>
-		<Version>4.7.0</Version>
+		<Version>4.8.0</Version>
 		<Copyright>Copyleft Infi, VariableVixen 2024</Copyright>
 	</PropertyGroup>
 </Project>
